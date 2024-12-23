@@ -38,7 +38,7 @@ class OVGraphVS(GraphVS):
             return self.net_new(inputs)
 
 
-class GraphVSController_(object):
+class GraphVSController(object):
     def __init__(self, ckpt_path: str, device="cuda:0"):
         self.device = torch.device(device)
         # self.net: GraphVS = torch.load(ckpt_path, map_location=self.device)["net"]
@@ -69,7 +69,7 @@ class GraphVSController_(object):
         vel = vel.squeeze(0).cpu().numpy()
         return vel
 
-class GraphVSController(object):
+class OVGraphVSController(object):
     def __init__(self, ckpt_path: str, device="CPU"):
         self.device = torch.device(device)
         ckpt_path="cns_ov"
