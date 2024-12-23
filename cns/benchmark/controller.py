@@ -31,10 +31,10 @@ class OVGraphVS(GraphVS):
         inputs["cluster_centers_index"] = getattr(data, "cluster_centers_index")
         inputs["num_clusters"] = getattr(data, "num_clusters")
         if hidden is not None:
-            inputs["magic_number"] = torch.tensor([1])
+            inputs["new_scene"] = torch.tensor(True)
             inputs["hidden"] = hidden
         else:
-            inputs["magic_number"] = torch.tensor([-1])
+            inputs["new_scene"] = torch.tensor(False)
             inputs["hidden"] = torch.rand(14,128)
         return self.net(inputs)
 
