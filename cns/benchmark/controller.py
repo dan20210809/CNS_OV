@@ -61,7 +61,7 @@ class GraphVSController(object):
                 self.hidden = None
 
             raw_pred = self.net(data, self.hidden)
-            breakpoint()
+            # breakpoint()
             self.hidden = raw_pred[-1]
             vel = self.net.postprocess(raw_pred, data)
 
@@ -85,7 +85,7 @@ class OVGraphVSController(object):
             if getattr(data, "new_scene").any():
                 print("[INFO] Got new scene, set hidden state to zero")
                 self.hidden = None
-            breakpoint()
+            # breakpoint()
             raw_pred = self.net(data, self.hidden)
             raw_pred_torch = []
             for i in range(len(raw_pred)):
