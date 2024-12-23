@@ -12,8 +12,7 @@ class OVGraphVS(GraphVS):
     def __init__(self, ckpt_path, device):
         core = openvino.Core()
         
-        self.net_new = core.compile_model(Path(ckpt_path)/"openvino_model_new_scene.xml",device)
-        self.net_old = core.compile_model(Path(ckpt_path)/"openvino_model_old_scene.xml",device)
+        self.net = core.compile_model(Path(ckpt_path)/"openvino_model.xml",device)
 
     def __call__(self, data, hidden):
         inputs = {}
@@ -32,10 +31,12 @@ class OVGraphVS(GraphVS):
         inputs["cluster_centers_index"] = getattr(data, "cluster_centers_index")
         inputs["num_clusters"] = getattr(data, "num_clusters")
         if hidden is not None:
-            inputs["hidden"]=hidden
-            return self.net_old(inputs)
+            inputs["magic_number"] = torch.tensor([1])
+            inputs["hidden"] = hidden
         else:
-            return self.net_new(inputs)
+            inputs["magic_number"] = torch.tensor([-1])
+            inputs["hidden"] = torch.rand(14,128)
+        return self.net(inputs)
 
 
 class GraphVSController(object):
@@ -86,12 +87,13 @@ class OVGraphVSController(object):
             if getattr(data, "new_scene").any():
                 print("[INFO] Got new scene, set hidden state to zero")
                 self.hidden = None
-            # breakpoint()
+            
             raw_pred = self.net(data, self.hidden)
+            # breakpoint()
             raw_pred_torch = []
             for i in range(len(raw_pred)):
                 raw_pred_torch.append(torch.tensor(raw_pred[i]))
-            self.hidden = raw_pred[-1]
+            self.hidden = raw_pred_torch[-1]
             vel = self.net.postprocess(raw_pred_torch, data)
 
         vel = vel.squeeze(0).cpu().numpy()

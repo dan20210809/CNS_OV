@@ -9,7 +9,7 @@ class OVGraphVS(GraphVS):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def forward(self, x_cur, x_tar, pos_cur, pos_tar, l1_dense_edge_index_cur, l1_dense_edge_index_tar, l0_to_l1_edge_index_j_cur, l0_to_l1_edge_index_i_cur, cluster_mask, cluster_centers_index, num_clusters, batch=None, hidden=None):
+    def forward(self, x_cur, x_tar, pos_cur, pos_tar, l1_dense_edge_index_cur, l1_dense_edge_index_tar, l0_to_l1_edge_index_j_cur, l0_to_l1_edge_index_i_cur, cluster_mask, cluster_centers_index, num_clusters, magic_number, hidden=None, batch=None):
         l0_to_l1_edge_index_cur = torch.stack([l0_to_l1_edge_index_j_cur,
                                                l0_to_l1_edge_index_i_cur], dim=0)
 
@@ -21,9 +21,10 @@ class OVGraphVS(GraphVS):
             l0_to_l1_edge_index_cur, cluster_centers_index)
         pos_clu = pos_tar[cluster_centers_index]
         batch_clu = batch[cluster_centers_index]
+        xx = self.init_hidden(num_clusters.sum()).to(x_cur)
 
-        if hidden is None:
-            hidden = self.init_hidden(num_clusters.sum()).to(x_cur)
+        hidden = torch.where(magic_number<0, xx,hidden)
+        
         hidden, x_clu = self.backbone(
             hidden, x_clu, pos_clu, l1_dense_edge_index_cur, l1_dense_edge_index_tar, batch_clu)
         
@@ -104,10 +105,24 @@ else:
     model = OVGraphVS(2, 2, 128, regress_norm=True).to("cpu")
     model.load_state_dict(ckpt)
 
-ov_model = openvino.convert_model(model, example_input=example_input)
+# ov_model = openvino.convert_model(model, example_input=example_input)
 
-openvino.save_model(ov_model, "cns_ov/openvino_model_new_scene.xml")
+# openvino.save_model(ov_model, "cns_ov/openvino_model_new_scene.xml")
+
+# example_input["hidden"] = torch.rand(14,128)
+# ov_model_old = openvino.convert_model(model, example_input=example_input)
+# openvino.save_model(ov_model_old, "cns_ov/openvino_model_old_scene.xml")
 
 example_input["hidden"] = torch.rand(14,128)
+example_input["magic_number"] = torch.tensor([1])
 ov_model_old = openvino.convert_model(model, example_input=example_input)
-openvino.save_model(ov_model_old, "cns_ov/openvino_model_old_scene.xml")
+openvino.save_model(ov_model_old, "cns_ov/openvino_model.xml")
+
+# core = openvino.Core()
+# model_= core.compile_model("cns_ov/openvino_model_new_scene.xml")
+# print(model_(example_input))
+
+# example_input["hidden"] = torch.rand(14,128)
+# example_input["magic_number"] = torch.tensor([1])
+# model = core.compile_model("cns_ov/openvino_model.xml")
+# print(model(example_input))
