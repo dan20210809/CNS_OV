@@ -6,13 +6,14 @@ from ..models.graph_vs import GraphVS
 from ..midend.graph_gen import GraphData
 from ..ablation.ibvs.ibvs import IBVS
 import openvino
-
+from pathlib import Path
 
 class OVGraphVS(GraphVS):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, ckpt_path, device):
         core = openvino.Core()
-        self.net_new = core.compile_model("/home/chentianmeng/workspace/CNS/cns_ov/openvino_model_new_scene.xml")
-        self.net_old = core.compile_model("/home/chentianmeng/workspace/CNS/cns_ov/openvino_model_old_scene.xml")
+        
+        self.net_new = core.compile_model(Path(ckpt_path)/"openvino_model_new_scene.xml",device)
+        self.net_old = core.compile_model(Path(ckpt_path)/"openvino_model_old_scene.xml",device)
 
     def __call__(self, data, hidden):
         inputs = {}
@@ -37,7 +38,7 @@ class OVGraphVS(GraphVS):
             return self.net_new(inputs)
 
 
-class GraphVSController(object):
+class GraphVSController_(object):
     def __init__(self, ckpt_path: str, device="cuda:0"):
         self.device = torch.device(device)
         # self.net: GraphVS = torch.load(ckpt_path, map_location=self.device)["net"]
@@ -68,15 +69,15 @@ class GraphVSController(object):
         vel = vel.squeeze(0).cpu().numpy()
         return vel
 
-class OVGraphVSController(object):
-    def __init__(self, ckpt_path: str, device="cpu"):
+class GraphVSController(object):
+    def __init__(self, ckpt_path: str, device="CPU"):
         self.device = torch.device(device)
-        self.net = OVGraphVS("/home/chentianmeng/workspace/CNS/cns_ov")
+        ckpt_path="cns_ov"
+        self.net = OVGraphVS(ckpt_path, "CPU")
 
         self.hidden = None
 
     def __call__(self, data: GraphData) -> np.ndarray:
-        print("[INFO] Calling GraphVSController")
         with torch.no_grad():
             data = data.to(self.device)
             if hasattr(self.net, "preprocess"):
