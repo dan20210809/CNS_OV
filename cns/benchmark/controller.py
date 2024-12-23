@@ -5,6 +5,36 @@ from typing import Union, Dict
 from ..models.graph_vs import GraphVS
 from ..midend.graph_gen import GraphData
 from ..ablation.ibvs.ibvs import IBVS
+import openvino
+
+
+class OVGraphVS(GraphVS):
+    def __init__(self, *args, **kwargs):
+        core = openvino.Core()
+        self.net_new = core.compile_model("/home/chentianmeng/workspace/CNS/cns_ov/openvino_model_new_scene.xml")
+        self.net_old = core.compile_model("/home/chentianmeng/workspace/CNS/cns_ov/openvino_model_old_scene.xml")
+
+    def __call__(self, data, hidden):
+        inputs = {}
+        inputs["x_cur"] = getattr(data, "x_cur")
+        inputs["x_tar"] = getattr(data, "x_tar")
+        inputs["pos_cur"] = getattr(data, "pos_cur")
+        inputs["pos_tar"] = getattr(data, "pos_tar")
+
+        inputs["l1_dense_edge_index_cur"] = getattr(data, "l1_dense_edge_index_cur")
+        inputs["l1_dense_edge_index_tar"] = getattr(data, "l1_dense_edge_index_tar")
+
+        inputs["l0_to_l1_edge_index_j_cur"] = getattr(data, "l0_to_l1_edge_index_j_cur")
+        inputs["l0_to_l1_edge_index_i_cur"] = getattr(data, "l0_to_l1_edge_index_i_cur")
+
+        inputs["cluster_mask"] = getattr(data, "cluster_mask")
+        inputs["cluster_centers_index"] = getattr(data, "cluster_centers_index")
+        inputs["num_clusters"] = getattr(data, "num_clusters")
+        if hidden is not None:
+            inputs["hidden"]=hidden
+            return self.net_old(inputs)
+        else:
+            return self.net_new(inputs)
 
 
 class GraphVSController(object):
@@ -25,14 +55,43 @@ class GraphVSController(object):
             data = data.to(self.device)
             if hasattr(self.net, "preprocess"):
                 data = self.net.preprocess(data)
-
+            
             if getattr(data, "new_scene").any():
                 print("[INFO] Got new scene, set hidden state to zero")
                 self.hidden = None
 
             raw_pred = self.net(data, self.hidden)
+            breakpoint()
             self.hidden = raw_pred[-1]
             vel = self.net.postprocess(raw_pred, data)
+
+        vel = vel.squeeze(0).cpu().numpy()
+        return vel
+
+class OVGraphVSController(object):
+    def __init__(self, ckpt_path: str, device="cpu"):
+        self.device = torch.device(device)
+        self.net = OVGraphVS("/home/chentianmeng/workspace/CNS/cns_ov")
+
+        self.hidden = None
+
+    def __call__(self, data: GraphData) -> np.ndarray:
+        print("[INFO] Calling GraphVSController")
+        with torch.no_grad():
+            data = data.to(self.device)
+            if hasattr(self.net, "preprocess"):
+                data = self.net.preprocess(data)
+            
+            if getattr(data, "new_scene").any():
+                print("[INFO] Got new scene, set hidden state to zero")
+                self.hidden = None
+            breakpoint()
+            raw_pred = self.net(data, self.hidden)
+            raw_pred_torch = []
+            for i in range(len(raw_pred)):
+                raw_pred_torch.append(torch.tensor(raw_pred[i]))
+            self.hidden = raw_pred[-1]
+            vel = self.net.postprocess(raw_pred_torch, data)
 
         vel = vel.squeeze(0).cpu().numpy()
         return vel
