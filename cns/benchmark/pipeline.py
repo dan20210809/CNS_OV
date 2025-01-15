@@ -15,7 +15,7 @@ from ..frontend.utils import FrontendConcatWrapper, show_corr
 
 from ..utils.perception import CameraIntrinsic
 from ..utils.visualize import show_graph, show_keypoints
-from .controller import GraphVSController, IBVSController, ImageVSController
+from .controller import OVGraphVSController, IBVSController, ImageVSController
 from ..ablation.cluster.train_graph_vs_no_cluster import GraphVS_NoCluster
 from ..ablation.cluster.graph_gen_no_cluster import GraphGeneratorNoCluster
 
@@ -54,7 +54,7 @@ class CorrespondenceBasedPipeline(object):
         detector: str, 
         ckpt_path: str, 
         intrinsic: CameraIntrinsic, 
-        device="cuda:0", 
+        device="cpu", 
         ransac=True, 
         vis=VisOpt.NO
     ):
@@ -67,7 +67,7 @@ class CorrespondenceBasedPipeline(object):
         if ckpt_path.endswith(".json"):
             self.control = IBVSController(ckpt_path)
         else:
-            self.control = GraphVSController(ckpt_path, self.device)
+            self.control = OVGraphVSController(ckpt_path, self.device)
             if isinstance(self.control.net, GraphVS_NoCluster):  # special case
                 self.midend.graph_generator_class = GraphGeneratorNoCluster
 

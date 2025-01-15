@@ -19,7 +19,7 @@ def run_demo():
         # ckpt_path="checkpoints/cns.pth",
         ckpt_path="checkpoints/cns_state_dict.pth",
         intrinsic=CameraIntrinsic.default(),
-        device="cuda:0",
+        device="cpu",
         ransac=True,
         vis=VisOpt.MATCH|VisOpt.GRAPH
     )
@@ -44,6 +44,15 @@ def run_demo():
         pipeline.set_target(tar_img, dist_scale=tPo_norm)
         stop_policy.reset()
 
+        time_metrics = {
+            "frontend_time": 0,
+            "midend_time": 0,
+            "backend_time": 0,
+            "total_time": 0
+        }
+
+        step_cnt = 0;
+
         while True:
             cur_img = env.observation()  # uint8, bgr image
             vel, data, timing = pipeline.get_control_rate(cur_img)
@@ -54,6 +63,13 @@ def run_demo():
                 data is None
             )
 
+            time_metrics["frontend_time"] += timing["frontend_time"]
+            time_metrics["midend_time"] += timing["midend_time"]
+            time_metrics["backend_time"] += timing["backend_time"]
+            time_metrics["total_time"] += timing["total_time"]
+
+            step_cnt += 1
+
             if need_stop:
                 break
             
@@ -63,6 +79,8 @@ def run_demo():
         print("[INFO] Steps: {}/{}".format(env.steps, env.max_steps))
         env.print_pose_err()
         print("-"*80)
+        print("[INFO] step_cnt = {}".format(step_cnt))
+        print("[INFO] timing in ms: frontend = {:.3f}, midend = {:.3f}, backend(infer) = {:.3f}, total = {:.3f}".format(time_metrics["frontend_time"]*1000/step_cnt, time_metrics["midend_time"]*1000/step_cnt, time_metrics["backend_time"]*1000/step_cnt, time_metrics["total_time"]*1000/step_cnt))
 
         results["gid"].append(env.global_indices[i])
         results["initial_pose"].append(env.initial_wcT)

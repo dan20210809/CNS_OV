@@ -8,11 +8,14 @@ from ..ablation.ibvs.ibvs import IBVS
 import openvino
 from pathlib import Path
 
+import pickle
+
 class OVGraphVS(GraphVS):
-    def __init__(self, ckpt_path, device):
+    def __init__(self, ckpt_path, device, hidden_dim=128):
         core = openvino.Core()
         
-        self.net = core.compile_model(Path(ckpt_path)/"openvino_model.xml",device)
+        self.net = core.compile_model(Path(ckpt_path)/"openvino_model.xml","CPU")
+        self.hidden_dim = hidden_dim
 
     def __call__(self, data, hidden):
         inputs = {}
@@ -30,12 +33,22 @@ class OVGraphVS(GraphVS):
         inputs["cluster_mask"] = getattr(data, "cluster_mask")
         inputs["cluster_centers_index"] = getattr(data, "cluster_centers_index")
         inputs["num_clusters"] = getattr(data, "num_clusters")
+        
         if hidden is not None:
-            inputs["new_scene"] = torch.tensor(True)
-            inputs["hidden"] = hidden
-        else:
             inputs["new_scene"] = torch.tensor(False)
-            inputs["hidden"] = torch.rand(14,128)
+            inputs["hidden"] = hidden
+            torch.set_printoptions(threshold=10_000)
+
+            #dump input for test ov inference
+            #dump_file = 'ov_input_data.txt'
+            #if Path(dump_file).exists() == False:
+            #    file = open(dump_file, 'wb')
+            #    pickle.dump(inputs, file)
+            #    file.close()
+        else:
+            inputs["new_scene"] = torch.tensor(True)
+            inputs["hidden"] = torch.zeros(getattr(data, "num_clusters").sum(), self.hidden_dim)
+            #print("[DEBUG] new scene is True, hidden size={}".format(type(hidden)))
         return self.net(inputs)
 
 
