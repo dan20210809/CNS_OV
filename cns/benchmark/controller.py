@@ -74,7 +74,20 @@ class GraphVSController(object):
             if getattr(data, "new_scene").any():
                 print("[INFO] Got new scene, set hidden state to zero")
                 self.hidden = None
-
+                        #dump input for test pytorch inference
+            
+            #if self.hidden is not None:
+            #    dump_file_data = 'pt_input_data.txt'
+            #    dump_file_hidden = 'pt_input_hidden.txt'
+                
+            #    if Path(dump_file_data).exists() == False:
+            #        file = open(dump_file_data, 'wb')
+            #        pickle.dump(data, file)
+            #        file.close()
+            #        file = open(dump_file_hidden, 'wb')
+            #        pickle.dump(self.hidden, file)
+            #        file.close()
+            
             raw_pred = self.net(data, self.hidden)
             # breakpoint()
             self.hidden = raw_pred[-1]
